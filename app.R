@@ -3,10 +3,11 @@
 # the 'Run App' button above.
 #
 # Kristin Abkemeier
-# 2018-06-10
+# 2018-06-11 update
 # Coursera Data Science Specialization Capstone project
 
 library(shiny)
+library(shinyjs)
 library(stringr)
 library(data.table)
 # markdown library for including the about.md document on the About tab
@@ -30,11 +31,16 @@ ui <- navbarPage("Final Word",
    # Predict is the panel where all of the word lookup action happens
    tabPanel("Predict",
     fluidRow(
-      column(9,
-            textInput(inputId = "typeInText",
-                      label = h4("Start typing. Top 3 next words appear in color."),
+      column(4,
+             shinyjs::useShinyjs(),
+             id = "entry",
+           textInput(inputId = "typeInText",
+                      label = h4("Type for top 3 next words."),
                       value = " ")
-      )
+      ),
+      column(1,
+             actionButton(inputId = "resetInput","Clear  ")
+      ) 
     ),
     fluidRow(
       column(9,
@@ -79,7 +85,11 @@ ui <- navbarPage("Final Word",
 
 # Define server logic required to look-up predicted words in lookup tables, create a bar plot,
 # and superimpose words on the bar plot.
-server <- function(input, output) {
+server <- function(input, output, session) {
+  
+  observeEvent(input$resetInput, {
+    shinyjs::reset("entry")
+  })
 
   # Use reactiveValues
   state <- reactiveValues()
