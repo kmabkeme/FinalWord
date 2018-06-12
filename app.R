@@ -110,56 +110,142 @@ server <- function(input, output) {
     ## then we will break it up and show it on two lines instead. The reason is that on the 
     ## smartphone screen, the unbroken text runs off the side of the screen.
     
+    # All of the lookup words are returned separately now, so I need to paste them together for 
+    # getting the entire cleaned up string
+    allLookupWords <- trimws(paste((state$y)[8], (state$y)[9], (state$y)[10], sep=" "))
+    
     # The reactiveValue state$y contains the outputs from the word prediction lookup method backoff7()
     # below. They are indexed in order in which they were indicated in backoff7(). I don't want to rename
     # these too much in order to reduce the number of levels of cascading changing values in this app.
     predWordLength <- max(c(nchar((state$y)[3]), nchar((state$y)[2]), nchar((state$y)[1])))
     
-    if ((nchar((state$y)[8]) + predWordLength) >= 22)
+    # 2018-06-11, KA - Now returning the lookup words separately so I can break them across lines more
+    # easily. On my iPhone 7 with the text size set at 2, I can fit 23 characters, which means that 4 words
+    # can total 20 characters with 3 spaces if they are to fit onto a single line.
+    if ((nchar((state$y)[8]) + nchar((state$y)[9]) + nchar((state$y)[10]) + predWordLength) >= 20)
     {
-      if (nchar((state$y)[8]) >= 22)
+      # If we can't fit all three lookup words on one line, we put the third one on the second line.
+      if (nchar((state$y)[8]) + nchar((state$y)[9]) + nchar((state$y)[10]) >= 21)
       {
-        state8Str <- (state$y)[8]
-        state8Str20Chars <- substr((state$y)[8], start=1, stop=20)
-        ## Truncate the lookup word string and show that it continues beyond 20 characters
-        predictedTextLbls <- c(paste(state8Str20Chars,"...",sep=""),
-                             paste(state8Str20Chars,"...",sep=""),
-                             paste(state8Str20Chars,"...",sep="")
-        )
+        # If we can't fit the first two lookup words on one line, we make them fit. Calling Procrustes!
+        if (nchar((state$y)[8]) + nchar((state$y)[9]) >= 22)
+        {
+          if (nchar((state$y)[8]) >= 12)
+          {
+            state8Str <- (state$y)[8]
+            state8Str9Chars <- substr((state$y)[8], start=1, stop=9)
+            str8Use <- paste(state8Str9Chars,"...",sep="")
+          }
+          else
+          {
+            str8Use <- (state$y)[8]
+          }
+          
+          if (nchar((state$y)[9]) >= 10)
+          {
+            state9Str <- (state$y)[9]
+            state9Str9Chars <- substr((state$y)[9], start=1, stop=7)
+            str9Use <- paste(state9Str9Chars,"...",sep="")
+          }
+          else
+          {
+            str9Use <- (state$y)[9]
+          }
+          
+          firstLine <- trimws(paste(str8Use, str9Use,sep=" "))
+          ## Truncate the lookup word string and show that it continues beyond 20 characters
+          predictedTextLbls <- c(firstLine,
+                                 firstLine,
+                                 firstLine
+          )
+          
+          if ((nchar((state$y)[10]) + predWordLength) >= 22)
+          {
+            predictedTextLbls2 <- secondRowHelper()
+            
+            # The first two lookup words fit one one line, but the third lookup word and predicted words don't
+            # fit on a line. So we truncate. Gotta fit everything onto two lines.
+            numberOfRows <- 2
+            
+          }
+          else
+          {
+            # If the first two lookup words fit on a line, and the last lookup word and predicted words fit,
+            # then we put them each on separate lines and we're done
+            
+            
+            ## The third lookup word and the predicted words on their own line next to each bar
+            predictedTextLbls2 <- c(trimws(paste((state$y)[10], (state$y)[3], sep=" ")),
+                                    trimws(paste((state$y)[10], (state$y)[2], sep=" ")),
+                                    trimws(paste((state$y)[10], (state$y)[1], sep=" "))
+            )
+            
+            numberOfRows <- 2
+          }
+          
+        }
+        else
+        {
+          # The first two lookup words get their own line next to each bar in the plot
+          first2Words <- trimws(paste((state$y)[8], (state$y)[9], sep=" "))
+          predictedTextLbls <- c(first2Words, 
+                                 first2Words,
+                                 first2Words
+          )
+          
+          if (nchar((state$y)[10]) + predWordLength >= 22)
+          {
+            predictedTextLbls2 <- secondRowHelper()
+            
+            numberOfRows <- 2
+            
+          }
+          else
+          {
+            # If the first two lookup words fit on a line, and the last lookup word and predicted words fit,
+            # then we put them each on separate lines and we're done
+
+            ## The third lookup word and the predicted words on their own line next to each bar
+            predictedTextLbls2 <- c(trimws(paste((state$y)[10], (state$y)[3], sep=" ")),
+                                    trimws(paste((state$y)[10], (state$y)[2], sep=" ")),
+                                    trimws(paste((state$y)[10], (state$y)[1], sep=" "))
+            )
+            
+            numberOfRows <- 2
+          }
+        }
       }
       else
       {
         ## The lookup words get their own line next to each bar
-        predictedTextLbls <- c((state$y)[8],
-                               (state$y)[8],
-                               (state$y)[8]
+        predictedTextLbls <- c(allLookupWords, 
+                               allLookupWords,
+                               allLookupWords
         )
+        
+        ## The predicted words on their own line next to each bar
+        predictedTextLbls2 <- c((state$y)[3],
+                                (state$y)[2],
+                                (state$y)[1]
+        )
+        
+        numberOfRows <- 2
       }
-      
-      ## The predicted words on their own line next to each bar
-      predictedTextLbls2 <- c((state$y)[3],
-                              (state$y)[2],
-                              (state$y)[1]
-      )
-      
-      numberOfRows <- 2
-      
     }
     else
     {
       # Paste both the lookup phrase and the predicted words when they do all fit
-      predictedTextLbls <- c(paste((state$y)[8], (state$y)[3], sep=" "),
-                             paste((state$y)[8], (state$y)[2], sep=" "),
-                             paste((state$y)[8], (state$y)[1], sep=" ")
+      predictedTextLbls <- c(trimws(paste(allLookupWords, (state$y)[3], sep=" ")),
+                             trimws(paste(allLookupWords, (state$y)[2], sep=" ")),
+                             trimws(paste(allLookupWords, (state$y)[1], sep=" "))
       )
       
       numberOfRows <- 1
     }
 
-    # Slices are the bars - this was originally a pie chart
-    slices <- c(as.numeric((state$y)[4]), as.numeric((state$y)[5]), as.numeric((state$y)[6])) 
+    wordWeights <- c(as.numeric((state$y)[4]), as.numeric((state$y)[5]), as.numeric((state$y)[6])) 
     lbls <- c((state$y)[1], (state$y)[2], (state$y)[3])
-    df <- data.frame(slices, lbls)
+    df <- data.frame(wordWeights, lbls)
     ## Plot the bars in decreasing order of weight
     dfdecreasing <- df[order(df[,1]),]
     pct <- dfdecreasing[,1]
@@ -187,10 +273,61 @@ server <- function(input, output) {
     
   })
   
+  
+  secondRowHelper <- function(){
+    
+    # The first two lookup words fit one one line, but the third lookup word and predicted words don't
+    # fit on a line. So we truncate. Gotta fit everything onto two lines.
+    
+    lengthPred3 <- nchar((state$y)[3])
+    lengthPred2 <- nchar((state$y)[2])
+    lengthPred1 <- nchar((state$y)[1])
+    
+    # Handle each of the predicted words differently...truncation might not be necessary for all of them
+    if ((nchar((state$y)[10]) + lengthPred3) >= 22)
+    {
+      luWord3Trunc3 <- substr((state$y)[10], start=1, stop=10)
+      line3 <- trimws(paste(luWord3Trunc3, "... ", (state$y)[3], sep=""))
+    }
+    else
+    {
+      line3 <- trimws(paste((state$y)[10], (state$y)[3], sep=" "))
+    }
+    
+    if ((nchar((state$y)[10]) + lengthPred2) >= 22)
+    {
+      luWord3Trunc2 <- substr((state$y)[10], start=1, stop=10)
+      line2 <- trimws(paste(luWord3Trunc2, "... ", (state$y)[2], sep=""))
+    }
+    else
+    {
+      line2 <- trimws(paste((state$y)[10], (state$y)[2], sep=" "))
+    }
+    
+    if ((nchar((state$y)[10]) + lengthPred1) >= 22)
+    {
+      luWord3Trunc1 <- substr((state$y)[10], start=1, stop=10)
+      line1 <- trimws(paste(luWord3Trunc1, "... ", (state$y)[1], sep=""))
+    }
+    else
+    {
+      line1 <- trimws(paste((state$y)[10], (state$y)[1], sep=" "))
+    }
+    
+    predictedTextLbls2 <- c(line3,
+                            line2,
+                            line1
+    )
+    
+    predictedTextLbls2
+  }
+  
+  
+  
   cleanUpKAStuff <- function(str){
     ## Let's replace the generalized values with "(url)", etc. so the presentation onscreen is better
     str <- gsub("kaurl","(URL)",str)
-    str <- gsub("katwitter","(Twitter handle/tag)",str)
+    str <- gsub("katwitter","(hashtag)",str)
     str <- gsub("kanumber","(number)",str)
     str <- gsub("kamoney","(monetary)",str)
     str <- gsub("katime","(time)",str)
@@ -488,7 +625,8 @@ server <- function(input, output) {
     # Send the predicted words, their weights, original text, and lookup words out to the reactiveValue state$y
     result <- c(result.first[1,word4], result.first[2,word4], result.first[3,word4], 
                 round(weight1/totalWeight*100), round(weight2/totalWeight*100), round(weight3/totalWeight*100),
-                originalTextPhrase, lookupWords)
+                originalTextPhrase, cleanUpKAStuff(lookup1), cleanUpKAStuff(lookup2), cleanUpKAStuff(lookup3))
+                #originalTextPhrase, lookupWords)
     
     result
   }
