@@ -31,13 +31,15 @@ ui <- navbarPage("Final Word",
    # Predict is the panel where all of the word lookup action happens
    tabPanel("Predict",
     fluidRow(
-      column(4,
+      column(9,
              shinyjs::useShinyjs(),
              id = "entry",
            textInput(inputId = "typeInText",
-                      label = h4("Type for top 3 next words."),
+                      label = h4("Type to find top 3 likely next words"),
                       value = " ")
-      ),
+      )
+    ),
+    fluidRow(
       column(1,
              actionButton(inputId = "resetInput","Clear  ")
       ) 
@@ -338,6 +340,7 @@ server <- function(input, output, session) {
     ## Let's replace the generalized values with "(url)", etc. so the presentation onscreen is better
     str <- gsub("kaurl","(URL)",str)
     str <- gsub("katwitter","(hashtag)",str)
+    str <- gsub("kanumber-percent","(number) percent",str)
     str <- gsub("kanumber","(number)",str)
     str <- gsub("kamoney","(monetary)",str)
     str <- gsub("katime","(time)",str)
@@ -375,7 +378,9 @@ server <- function(input, output, session) {
       {
         if (!is.na(splitOriginalText[i]))
         {
-          str <- gsub("é", "e", splitOriginalText[i], ignore.case = TRUE)  
+          str <- tolower(splitOriginalText[i])
+          #str <- gsub("é", "e", splitOriginalText[i], ignore.case = TRUE) 
+          str <- gsub("é", "e", str, ignore.case = TRUE)
           str <- gsub("è", "e", str, ignore.case = TRUE)
           # 2018-06-09, KA - Handle the diaeresis, in case a New Yorker editor uses this app
           str <- gsub("ä", "a", str, ignore.case = TRUE)
@@ -406,12 +411,13 @@ server <- function(input, output, session) {
           str <- str_replace_all(str, "http://t.co/[a-z,A-Z,0-9]{10}","")
           str <- str_replace_all(str, "http[:]*[[:punct:]]*[a-z,A-Z,0-9]*","")
           
+          str <- gsub("^(\\$|\\£)[0-9]+.*\\b", "kamoney", str)
           # Generalize many numbers, monetary values, times, URLs, etc. so they can still be used in
           # predictions. This may be a minor enhancement to accuracy, but I'm giving it a shot.
           str <- gsub("\\b[^0-9]+[0-9]+\\b"," kanumber",str) 
           # Just a number
           str <- gsub("\\b[0-9]+\\b","kanumber",str) 
-          str <- gsub("\\b(\\$|\\£).*\\b", "kamoney", str)
+
           # 2018-06-09, KA - kaphone never appeared in my lookup table anyway
           #str <- gsub("\\b[0-9]{3}\\-[0-9]{3}\\-[0-9]{4}\\b", "kaphone", str)
           str <- gsub("\\b[0-9]+[ap]+\\.*[m]*\\.*\\b"," katime",str) 
@@ -431,8 +437,8 @@ server <- function(input, output, session) {
           str <- gsub("[-a-zA-Z0-9\\.]*\\.php/*[-a-zA-Z0-9]*","kaurl",str)
           str <- gsub("[-a-zA-Z0-9\\.]*bit\\.ly[-a-zA-Z0-9]*","kaurl",str)
           
-          str <- gsub("&"," and ",str)
-          str <- gsub("%"," percent ",str)
+          str <- gsub("^&$"," and ",str)
+          str <- gsub("kanumber%$"," kanumber-percent ",str)
           
           # Strip off leading and trailing punctuation, to get to the lookup words.
           str <- gsub("^([[:punct:]])+", "", trimws(str))
@@ -458,7 +464,7 @@ server <- function(input, output, session) {
             str <- gsub("[a-z]*b[i1\\*]tch[a-z0-9]*","",str)
             ##str <- gsub("\\barse[a-z0-9]*","",str)
             str <- gsub("\\bcr[a@]p[a-z0-9]*","",str)
-            str <- gsub("[a-z0-9]*damn[a-z0-9]*","",str)
+            str <- gsub("[a-z0-9]*[dD][aA][mM][nN][a-z0-9]*","",str)
             str <- gsub("\\bn[i1]gg[a4][a-z0-9]*","",str)
             str <- gsub("\\bn[i1]gg[e3]r[a-z0-9]*","",str)
             str <- gsub("\\b(bull)*[s$]h[i1]+t[a-z0-9]*","",str)
@@ -513,6 +519,8 @@ server <- function(input, output, session) {
       }
       else
       {
+        numberOfLookupWords <- 0
+        indicesKept <- vector(mode="numeric", length=1)
         indicesKept[1] <- -1
       }
       
@@ -521,11 +529,25 @@ server <- function(input, output, session) {
       if (indicesKept[1] != -1)
       {
         originalTextIndices <- indicesKept[1]:numberOfWords
-        originalTextPhrase <- paste(splitOriginalText[originalTextIndices],collapse=" ")
+        if (numberOfWords > 3)
+        {
+          originalTextPhrase <- paste(splitOriginalText[originalTextIndices],collapse=" ")
+        }
+        else
+        {
+          originalTextPhrase <- paste(splitOriginalText[1:numberOfWords],collapse=" ")
+        }
       }
       else
       {
-        originalTextPhrase <- paste(splitOriginalText[1:numberOfWords],collapse=" ")
+        if (numberOfWords > 3)
+        {
+          originalTextPhrase <- paste(splitOriginalText[numberOfWords-3:numberOfWords],collapse=" ")
+        }
+        else
+        {
+          originalTextPhrase <- paste(splitOriginalText[1:numberOfWords],collapse=" ")
+        }
       }
     }
     else
